@@ -14,11 +14,23 @@ public class RequestsService {
     private final RoomsDAO roomsDAO = new RoomsDAO();
 
     public List<Requests> getAll() throws SQLException {
-        return dao.getAll();
+        List<Requests> requests = dao.getAll();
+
+        for (Requests request : requests) {
+            fillRiskIndex(request);
+        }
+
+        return requests;
     }
 
     public Requests getById(long id) throws SQLException {
-        return dao.getById(id);
+        Requests request = dao.getById(id);
+
+        if (request != null) {
+            fillRiskIndex(request);
+        }
+
+        return request;
     }
 
     public void add(Requests request) throws SQLException {
@@ -117,6 +129,16 @@ public class RequestsService {
                 request.getF1(),
                 request.getF2(),
                 request.getF3()
+        );
+    }
+
+    private void fillRiskIndex(Requests request) {
+        request.setRiskIndex(
+                RiskCalculator.calculate(
+                        request.getF1(),
+                        request.getF2(),
+                        request.getF3()
+                )
         );
     }
 

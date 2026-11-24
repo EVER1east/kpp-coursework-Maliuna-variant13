@@ -21,7 +21,7 @@ public class ExecutionRecordsDAO {
     }
 
     public List<ExecutionRecords> getAll() throws SQLException {
-        String sql = "SELECT id, request_id, work_done FROM execution_records ORDER BY id";
+        String sql = SELECT_RECORDS + " ORDER BY er.id";
         List<ExecutionRecords> executionRecord = new ArrayList<>();
 
         try (Connection connection = DBUtil.getConnection();
@@ -36,7 +36,7 @@ public class ExecutionRecordsDAO {
     }
 
     public ExecutionRecords getById(long id) throws SQLException {
-        String sql = "SELECT id, request_id, work_done FROM execution_records WHERE id = ?";
+        String sql = SELECT_RECORDS + " WHERE er.id = ?";
 
         try (Connection connection = DBUtil.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -50,6 +50,12 @@ public class ExecutionRecordsDAO {
             }
         }
     }
+
+    private static final String SELECT_RECORDS = """
+        SELECT er.id, er.request_id, r.specialist_id, er.work_done
+        FROM execution_records er
+        JOIN requests r ON r.id = er.request_id
+        """;
 
     public void update(ExecutionRecords executionRecord) throws SQLException {
         String sql = "UPDATE execution_records SET work_done = ? WHERE id = ?";
@@ -73,10 +79,12 @@ public class ExecutionRecordsDAO {
     }
 
     private ExecutionRecords map(ResultSet result) throws SQLException {
-        return new ExecutionRecords(
+        ExecutionRecords record = new ExecutionRecords(
                 result.getLong("id"),
                 result.getLong("request_id"),
                 result.getString("work_done")
         );
+        record.setSpecialistId(result.getObject("specialist_id", Long.class));
+        return record;
     }
 }

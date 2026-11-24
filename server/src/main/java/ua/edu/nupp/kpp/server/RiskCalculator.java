@@ -20,6 +20,4 @@ public final class RiskCalculator {
             );
         }
     }
-
-    double result = RiskCalculator.calculate(80, 60, 40);
 }

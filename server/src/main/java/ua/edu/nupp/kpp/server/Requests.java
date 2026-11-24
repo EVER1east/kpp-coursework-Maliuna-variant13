@@ -10,6 +10,7 @@ public class Requests {
     private double f1;
     private double f2;
     private double f3;
+    private double riskIndex;
 
     public Requests() {
     }
@@ -24,6 +25,7 @@ public class Requests {
         this.f1 = f1;
         this.f2 = f2;
         this.f3 = f3;
+
     }
 
     public Long getId() {
@@ -88,5 +90,13 @@ public class Requests {
 
     public void setF3(double f3) {
         this.f3 = f3;
+    }
+
+    public double getRiskIndex() {
+        return riskIndex;
+    }
+
+    public void setRiskIndex(double riskIndex) {
+        this.riskIndex = riskIndex;
     }
 }

@@ -6,6 +6,15 @@ public class ExecutionRecords {
     private Long id;
     private long requestNumber;
     private String workDone;
+    private Long specialistId;
+
+    public Long getSpecialistId() {
+        return specialistId;
+    }
+
+    public void setSpecialistId(Long specialistId) {
+        this.specialistId = specialistId;
+    }
 
     public ExecutionRecords(Long id, long requestNumber, String workDone) {
         this.id = id;
