@@ -36,14 +36,32 @@ public class RoomsService {
 
     }
 
-    public void delete(Rooms rooms) throws SQLException {
-
-        if (rooms == null || rooms.getId()== null || rooms.getId()<= 0) {
-            throw new IllegalArgumentException("Не вказано id номера для видалення");
+    public void delete(Rooms room) throws SQLException {
+        if (room == null || room.getId() == null || room.getId() <= 0) {
+            throw new IllegalArgumentException(
+                    "Не вказано ID кімнати для видалення"
+            );
         }
-        dao.delete(rooms.getId());
-        LOG.info("Видалено кімнату");
 
+        try {
+            dao.delete(room.getId());
+        } catch (SQLException e) {
+            if (e.getErrorCode() == 1451) {
+                LOG.warning(
+                        "Відхилено видалення кімнати " + room.getId()
+                                + ": існують пов’язані записи"
+                );
+
+                throw new IllegalArgumentException(
+                        "Неможливо видалити кімнату: з нею пов’язані заявки",
+                        e
+                );
+            }
+
+            throw e;
+        }
+
+        LOG.info("Видалено кімнату " + room.getId());
     }
 
     static void validate(Rooms room) {

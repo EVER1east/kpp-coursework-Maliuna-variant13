@@ -13,6 +13,8 @@ public class HttpHotelClient {
     private final HttpClient http=HttpClient.newHttpClient();
     private final ObjectMapper mapper=new ObjectMapper();
 
+
+
     public List<Room> getRooms() {
         return Arrays.asList(
                 read(get("/rooms"), Room[].class)
@@ -38,6 +40,33 @@ public class HttpHotelClient {
 
     public void deleteRoom(long id) {
         post("/rooms", "action=delete&id=" + id);
+    }
+
+    public List<Equipment> getEquipment() {
+        return Arrays.asList(
+                read(get("/equipment"), Equipment[].class)
+        );
+    }
+
+    public void addEquipment(Equipment equipment) {
+        post("/equipment",
+                "action=add"
+                        + "&room_id=" + equipment.getRoomId()
+                        + "&name=" + enc(equipment.getName())
+        );
+    }
+
+    public void updateEquipment(Equipment equipment) {
+        post("/equipment",
+                "action=update"
+                        + "&id=" + equipment.getId()
+                        + "&room_id=" + equipment.getRoomId()
+                        + "&name=" + enc(equipment.getName())
+        );
+    }
+
+    public void deleteEquipment(long id) {
+        post("/equipment", "action=delete&id=" + id);
     }
 
     public List<Specialist> getSpecialists() {
@@ -157,6 +186,8 @@ public class HttpHotelClient {
 
         return form;
     }
+
+
     private String get(String path) {
         HttpRequest req=HttpRequest.newBuilder(URI.create(BASE+path)).GET().build(); return send(req);
     }
@@ -172,8 +203,16 @@ public class HttpHotelClient {
             return r.body();
         } catch(Exception e) { throw new RuntimeException("Помилка HTTP: "+e.getMessage(),e); }
     }
-    private <T> T read(String json,Class<T> type) {
-        try { return mapper.readValue(json,type); } catch(Exception e) { throw new RuntimeException("Помилка JSON",e); }
+    private <T> T read(String json, Class<T> type) {
+        try {
+            return mapper.readValue(json, type);
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Помилка JSON для " + type.getSimpleName()
+                            + ": " + e.getMessage(),
+                    e
+            );
+        }
     }
     private String enc(String s) { return URLEncoder.encode(s==null?"":s,StandardCharsets.UTF_8); }
 }

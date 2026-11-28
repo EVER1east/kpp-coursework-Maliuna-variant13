@@ -84,7 +84,6 @@ public class ExecutionRecordsDAO {
                 result.getLong("request_id"),
                 result.getString("work_done")
         );
-        record.setSpecialistId(result.getObject("specialist_id", Long.class));
         return record;
     }
 }

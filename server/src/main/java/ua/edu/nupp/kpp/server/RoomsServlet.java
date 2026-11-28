@@ -17,7 +17,6 @@ public class RoomsServlet extends HttpServlet {
             writeJson(resp, service.getAll());
         } catch (Exception e) {
             writeError(resp, e);
-            getServletContext().log("Помилка в RoomsServlet", e);
         }
     }
 
@@ -70,6 +69,7 @@ public class RoomsServlet extends HttpServlet {
 
     private void writeError(HttpServletResponse resp,
                             Exception e) throws IOException {
+        getServletContext().log("Помилка в RoomsServlet", e);
         boolean clientError = e instanceof IllegalArgumentException;
 
         int status = clientError

@@ -10,7 +10,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-
+import java.nio.file.Path;
 import java.util.logging.Logger;
 
 public class MainApp extends Application {
@@ -21,16 +21,19 @@ public class MainApp extends Application {
                 new Tab("Номери", roomPane()),
                 new Tab("Фахівці",specialistPane()),
                 new Tab("Заявки",requestsPane()),
-                new Tab("Звіти про виконану роботу",executionRecordsPane())
+                new Tab("Звіти про виконану роботу",executionRecordsPane()),
+                new Tab("Обладнання", equipmentPane())
         );
         tabs.getTabs().forEach(t->t.setClosable(false));
         stage.setScene(new Scene(tabs,1050,650)); stage.setTitle("Технічні заявки готельного комплексу"); stage.show();
         refreshAll();
     }
     private final TableView<Room> rooms = new TableView<>();
+    private final TableView<Equipment> equipment = new TableView<>();
     private final TableView<Specialist> specialists = new TableView<>();
     private final TableView<Request> requests = new TableView<>();
     private final TableView<ExecutionRecord> executionRecords = new TableView<>();
+
     private Pane roomPane() {
         rooms.getColumns().setAll(
                 col("ID", "id"),
@@ -47,6 +50,17 @@ public class MainApp extends Application {
         Button update = new Button("Змінити");
         Button delete = new Button("Видалити");
         Button refresh = new Button("Оновити");
+
+        Button importCsv = new Button("Імпортувати CSV");
+        ProgressBar progress = new ProgressBar(0);
+        Label importStatus = new Label("Імпорт ще не запускався");
+
+        progress.setMaxWidth(Double.MAX_VALUE);
+
+
+
+
+
 
         add.setOnAction(e -> safe(() -> {
             Room room = new Room(
@@ -82,6 +96,53 @@ public class MainApp extends Application {
 
         refresh.setOnAction(e -> refreshRooms());
 
+        importCsv.setOnAction(e -> {
+            ImportRoomsTask task = new ImportRoomsTask(
+                    Path.of("sample-data", "rooms.csv"),
+                    api
+            );
+
+            importCsv.setDisable(true);
+
+            progress.progressProperty().bind(task.progressProperty());
+            importStatus.textProperty().bind(task.messageProperty());
+
+            task.setOnSucceeded(event -> {
+                progress.progressProperty().unbind();
+                importStatus.textProperty().unbind();
+                importCsv.setDisable(false);
+
+                importStatus.setText(
+                        "Готово. Імпортовано кімнат: " + task.getValue()
+                );
+
+                refreshRooms();
+            });
+
+            task.setOnFailed(event -> {
+                progress.progressProperty().unbind();
+                importStatus.textProperty().unbind();
+                importCsv.setDisable(false);
+
+                importStatus.setText("Імпорт перервано");
+                refreshRooms();
+                showError(task.getException());
+            });
+
+            task.setOnCancelled(event -> {
+                progress.progressProperty().unbind();
+                importStatus.textProperty().unbind();
+                importCsv.setDisable(false);
+
+                importStatus.setText("Імпорт скасовано");
+                refreshRooms();
+            });
+
+            Thread thread = new Thread(task, "rooms-csv-import");
+            thread.setDaemon(true);
+            thread.start();
+        });
+
         rooms.getSelectionModel().selectedItemProperty()
                 .addListener((observable, previous, room) -> {
                     if (room != null) {
@@ -96,10 +157,149 @@ public class MainApp extends Application {
                 new Label("Номер кімнати"), roomNumber,
                 new Label("Ціна"), price,
                 new Label("Статус"), status,
-                new HBox(8, add, update, delete, refresh)
+                new HBox(8, add, update, delete, refresh),
+                importCsv,
+                importStatus,
+                progress
         );
 
         return layout(rooms, form);
+    }
+
+    private Pane equipmentPane() {
+        equipment.getColumns().setAll(
+                col("ID", "id"),
+                col("ID кімнати", "roomId"),
+                col("Обладнання", "name")
+        );
+
+        TextField roomId = new TextField();
+        TextField name = new TextField();
+
+        Button add = new Button("Додати");
+        Button update = new Button("Змінити");
+        Button delete = new Button("Видалити");
+        Button refresh = new Button("Оновити");
+        Button clear = new Button("Очистити");
+
+        clear.setOnAction(e -> {
+            equipment.getSelectionModel().clearSelection();
+            roomId.setDisable(false);
+            roomId.clear();
+            name.clear();
+        });
+
+
+        add.setOnAction(e -> safe(() -> {
+            Equipment equipment = new Equipment(
+                    null,
+                    number(roomId, "ID кімнати"),
+                    text(name, "Назва обладнання")
+            );
+
+            api.addEquipment(equipment);
+            refreshEquipment();
+        }));
+
+        update.setOnAction(e -> safe(() -> {
+            Equipment current = selected(equipment);
+
+            Equipment equipment = new Equipment(
+                    current.getId(),
+                    current.getRoomId(),
+                    text(name, "Назва обладнання")
+            );
+
+            api.updateEquipment(equipment);
+            refreshEquipment();
+        }));
+
+        delete.setOnAction(e -> safe(() -> {
+            api.deleteEquipment(selected(equipment).getId());
+            refreshEquipment();
+        }));
+
+        refresh.setOnAction(e -> refreshEquipment());
+
+        equipment.getSelectionModel().selectedItemProperty()
+                .addListener((observable, previous, equipment) -> {
+                    roomId.setDisable(equipment != null);
+                    if (equipment != null) {
+                        roomId.setText(
+                                String.valueOf(equipment.getRoomId())
+                        );
+
+
+                        name.setText(equipment.getName());
+
+                    }
+                });
+
+        Button eqImportCsv = new Button("Імпортувати CSV");
+        ProgressBar eqProgress = new ProgressBar(0);
+        Label eqImportStatus = new Label("Імпорт ще не запускався");
+
+        eqProgress.setMaxWidth(Double.MAX_VALUE);
+
+        eqImportCsv.setOnAction(e -> {
+            ImportEquipmentTask task = new ImportEquipmentTask(
+                    Path.of("sample-data", "equipment.csv"),
+                    api
+            );
+
+            eqImportCsv.setDisable(true);
+
+            eqProgress.progressProperty().bind(task.progressProperty());
+            eqImportStatus.textProperty().bind(task.messageProperty());
+
+            task.setOnSucceeded(event -> {
+                eqProgress.progressProperty().unbind();
+                eqImportStatus.textProperty().unbind();
+                eqImportCsv.setDisable(false);
+
+                eqImportStatus.setText(
+                        "Готово. Імпортовано обладнання: " + task.getValue()
+                );
+
+                refreshEquipment();
+            });
+
+            task.setOnFailed(event -> {
+                eqProgress.progressProperty().unbind();
+                eqImportStatus.textProperty().unbind();
+                eqImportCsv.setDisable(false);
+
+                eqImportStatus.setText("Імпорт перервано");
+                refreshEquipment();
+                showError(task.getException());
+            });
+
+            task.setOnCancelled(event -> {
+                eqProgress.progressProperty().unbind();
+                eqImportStatus.textProperty().unbind();
+                eqImportCsv.setDisable(false);
+
+                eqImportStatus.setText("Імпорт скасовано");
+                refreshEquipment();
+            });
+
+            Thread thread = new Thread(task, "equipment-csv-import");
+            thread.setDaemon(true);
+            thread.start();
+        });
+
+        VBox form = new VBox(
+                8,
+                new Label("ID кімнати"), roomId,
+                new Label("Назва обладнання"), name,
+                new HBox(8, add, update),
+                new HBox(8, delete, refresh, clear),
+                eqImportCsv,
+                eqImportStatus,
+                eqProgress
+        );
+
+        return layout(equipment, form);
     }
 
     private Pane specialistPane() {
@@ -291,6 +491,7 @@ public class MainApp extends Application {
                 new Label("Стан для переходу"), state,
                 changeState,
                 new HBox(8, delete, refresh)
+
         );
 
         return layout(requests, form);
@@ -300,24 +501,30 @@ public class MainApp extends Application {
         executionRecords.getColumns().setAll(
                 col("ID", "id"),
                 col("ID заявки", "requestNumber"),
-                col("ID фахівця", "specialistId"),
                 col("Виконана робота", "workDone")
         );
 
         TextField requestNumber = new TextField();
-        TextField specialistId = new TextField();
         TextField workDone = new TextField();
 
         Button add = new Button("Додати");
         Button update = new Button("Змінити");
         Button delete = new Button("Видалити");
         Button refresh = new Button("Оновити");
+        Button clear = new Button("Очистити");
+
+        clear.setOnAction(e -> {
+            executionRecords.getSelectionModel().clearSelection();
+            requestNumber.setDisable(false);
+            requestNumber.clear();
+            workDone.clear();
+        });
+
 
         add.setOnAction(e -> safe(() -> {
             ExecutionRecord executionRecord = new ExecutionRecord(
                     null,
-                    number(requestNumber, "ID кімнати"),
-                    optionalNumber(specialistId, "ID фахівця"),
+                    number(requestNumber, "ID заявки"),
                     text(workDone, "Звіт про виконану роботу")
             );
 
@@ -330,8 +537,7 @@ public class MainApp extends Application {
 
             ExecutionRecord executionRecord = new ExecutionRecord(
                     current.getId(),
-                    number(requestNumber, "ID заявки"),
-                    optionalNumber(specialistId, "ID фахівця"),
+                    current.getRequestNumber(),
                     text(workDone, "Опис проблеми")
             );
 
@@ -348,16 +554,12 @@ public class MainApp extends Application {
 
         executionRecords.getSelectionModel().selectedItemProperty()
                 .addListener((observable, previous, executionRecord) -> {
+                    requestNumber.setDisable(executionRecord != null);
                     if (executionRecord != null) {
                         requestNumber.setText(
                                 String.valueOf(executionRecord.getRequestNumber())
                         );
 
-                        specialistId.setText(
-                                executionRecord.getSpecialistId() == null
-                                        ? ""
-                                        : executionRecord.getSpecialistId().toString()
-                        );
 
                         workDone.setText(executionRecord.getWorkDone());
 
@@ -367,21 +569,27 @@ public class MainApp extends Application {
         VBox form = new VBox(
                 8,
                 new Label("ID заявки"), requestNumber,
-                new Label("ID фахівця — можна залишити порожнім"), specialistId,
                 new Label("Звіт виконаної роботи"), workDone,
                 new HBox(8, add, update),
-                new HBox(8, delete, refresh)
+                new HBox(8, delete, refresh, clear)
         );
 
         return layout(executionRecords, form);
     }
 
-    private void refreshAll() { refreshRooms(); refreshSpecialists(); refreshRequests(); refreshExecutionRecords(); }
+    private void refreshAll() { refreshRooms(); refreshSpecialists(); refreshRequests(); refreshExecutionRecords(); refreshEquipment();}
     private void refreshRooms() {
         safe(() -> rooms.setItems(
                 FXCollections.observableArrayList(api.getRooms())
         ));
     }
+
+    private void refreshEquipment() {
+        safe(() -> equipment.setItems(
+                FXCollections.observableArrayList(api.getEquipment())
+        ));
+    }
+
     private void refreshSpecialists() {
         safe(() -> specialists.setItems(
                 FXCollections.observableArrayList(api.getSpecialists())

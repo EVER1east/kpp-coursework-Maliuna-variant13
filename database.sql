@@ -12,6 +12,15 @@ CREATE TABLE rooms (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Таблиця обладнання
+CREATE TABLE equipment (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    room_id BIGINT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+
+    FOREIGN KEY (room_id) REFERENCES rooms(id)
+);
+
 -- Таблиця працівників
 CREATE TABLE specialists (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
